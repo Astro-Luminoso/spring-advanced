@@ -1,6 +1,7 @@
 package org.example.expert.config;
 
 import org.example.expert.domain.auth.exception.AuthException;
+import org.example.expert.domain.common.exception.InvalidAuthorizationException;
 import org.example.expert.domain.common.exception.InvalidRequestException;
 import org.example.expert.domain.common.exception.ServerException;
 import org.springframework.http.HttpStatus;
@@ -45,6 +46,12 @@ public class GlobalExceptionHandler {
                 .orElse(ex.getMessage());
 
         return getErrorResponse(status, message);
+    }
+
+    @ExceptionHandler(InvalidAuthorizationException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidAuthorizationException(InvalidAuthorizationException ex) {
+        HttpStatus status = HttpStatus.FORBIDDEN;
+        return getErrorResponse(status, ex.getMessage());
     }
 
     public ResponseEntity<Map<String, Object>> getErrorResponse(HttpStatus status, String message) {
