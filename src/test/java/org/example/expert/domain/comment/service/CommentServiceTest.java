@@ -15,13 +15,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 @ExtendWith(MockitoExtension.class)
 class CommentServiceTest {
@@ -60,6 +63,7 @@ class CommentServiceTest {
         User user = User.fromAuthUser(authUser);
         Todo todo = new Todo("title", "title", "contents", user);
         Comment comment = new Comment(request.getContents(), user, todo);
+        ReflectionTestUtils.setField(comment, "id", 10L);
 
         given(todoRepository.findById(anyLong())).willReturn(Optional.of(todo));
         given(commentRepository.save(any())).willReturn(comment);
@@ -69,5 +73,45 @@ class CommentServiceTest {
 
         // then
         assertNotNull(result);
+        assertEquals(10L, result.getId());
+        assertEquals("contents", result.getContents());
+        assertEquals(authUser.getId(), result.getUser().getId());
+        assertEquals(authUser.getEmail(), result.getUser().getEmail());
+    }
+
+    @Test
+    void comment_목록_조회에_성공한다() {
+        // given
+        long todoId = 1L;
+        User user = new User("user@example.com", "password", UserRole.USER);
+        ReflectionTestUtils.setField(user, "id", 10L);
+        Todo todo = new Todo("title", "contents", "Sunny", user);
+        Comment comment = new Comment("contents", user, todo);
+        ReflectionTestUtils.setField(comment, "id", 20L);
+        given(commentRepository.findByTodoIdWithUser(todoId)).willReturn(List.of(comment));
+
+        // when
+        var responses = commentService.getComments(todoId);
+
+        // then
+        assertEquals(1, responses.size());
+        assertEquals(20L, responses.get(0).getId());
+        assertEquals("contents", responses.get(0).getContents());
+        assertEquals(10L, responses.get(0).getUser().getId());
+        assertEquals("user@example.com", responses.get(0).getUser().getEmail());
+    }
+
+    @Test
+    void comment_목록이_없으면_빈_목록을_반환한다() {
+        // given
+        long todoId = 1L;
+        given(commentRepository.findByTodoIdWithUser(todoId)).willReturn(List.of());
+
+        // when
+        var responses = commentService.getComments(todoId);
+
+        // then
+        assertTrue(responses.isEmpty());
+        then(commentRepository).should().findByTodoIdWithUser(todoId);
     }
 }
